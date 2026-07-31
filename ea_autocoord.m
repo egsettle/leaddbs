@@ -186,36 +186,70 @@ if ~strcmp(options.patientname,'No Patient Selected') && ~isempty(options.patien
         options.primarytemplate = bids.spacedef.misfit_template;
     end
 
-    % Pre-coregister pre-op anchor image
-    if ~isMiniset && isfield(options.subj, 'preopAnat')
-        if ~isfile(options.subj.preopAnat.(fields{1}).coreg)
-            ea_precoreg(options.subj.preopAnat.(fields{1}).preproc, ... % Input anchor image
-                options.primarytemplate, ... % Template to use
-                options.subj.preopAnat.(fields{1}).coreg, ... % Output pre-coregistered image
-                options.subj.coreg.transform.(fields{1})); % % Pre-coregistration transform
+% Run AC/PC before creating the coregistered anchor image
 
-            % Check if anchor image has been properly pre-coregistered. If
-            % not, fallback to preproc image.
-            try
-                load_nii(options.subj.preopAnat.(fields{1}).coreg);
-            catch
-                ea_cprintf('CmdWinWarnings', 'Anchor image was not properly pre-coregistered. Fallback to preproc image instead.\n');
-                ea_delete(options.subj.coreg.transform.(fields{1}));
-                ea_mkdir(fileparts(options.subj.preopAnat.(fields{1}).coreg));
-                copyfile(options.subj.preopAnat.(fields{1}).preproc, options.subj.preopAnat.(fields{1}).coreg);
+acpcDone = 0;
+
+if options.acpc.do
+    acpcDone = ea_runacpc(options);
+end
+
+% Preserve the previous resize behavior, but do not run
+% ea_runacpc twice when both options are selected.
+if options.resize.do && ~options.acpc.do
+    acpcDone = ea_runacpc(options);
+end
+
+
+if ~isMiniset && isfield(options.subj, 'preopAnat')
+
+    
+    anchorField = fields{1};
+
+    preprocAnchor = options.subj.preopAnat.(anchorField).preproc;
+    coregAnchor = options.subj.preopAnat.(anchorField).coreg;
+    anchorTransform = options.subj.coreg.transform.(anchorField);
+
+    % If AC/PC was run, the existing coregistration anchor was built
+    % from the old preprocessing T1 and must be regenerated.
+    if acpcDone
+        if isfile(coregAnchor)
+            ea_delete(coregAnchor);
+        end
+
+        ea_delete(anchorTransform);
+    end
+
+    % Build the coregistration anchor from the current preprocessing T1.
+    if ~isfile(coregAnchor)
+
+        ea_precoreg( ...
+            preprocAnchor, ...
+            options.primarytemplate, ...
+            coregAnchor, ...
+            anchorTransform);
+
+        % Check whether the new anchor image is readable.
+        try
+            load_nii(coregAnchor);
+
+        catch
+            ea_cprintf( ...
+                'CmdWinWarnings', ...
+                ['Anchor image was not properly pre-coregistered. ' ...
+                 'Fallback to preproc image instead.\n']);
+
+            if isfile(anchorTransform)
+                ea_delete(anchorTransform);
             end
+
+            ea_mkdir(fileparts(coregAnchor));
+            copyfile(preprocAnchor, coregAnchor);
         end
     end
+end
 
-    coregDone = 0;
-
-    if options.acpc.do
-        acpcDone = ea_runacpc(options);
-    end
-
-    if options.resize.do
-        acpcDone = ea_runacpc(options);
-    end
+coregDone = 0;
 
     if options.coregmr.do
         % Coregister pre-op MRIs to pre-op anchor image

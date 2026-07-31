@@ -151,17 +151,30 @@ if ~strcmp(options.patientname,'No Patient Selected') % if not initialize empty 
                 multiplemode = 1;
             end
             if ~multiplemode
-                side=options.sides(end);
-                d=load(options.subj.recon.recon);
-                plans=d.reco.electrode(side+1:end);
-                if ~isempty(plans)
-                    if isfield(plans,'plan')
-                        for plan=1:length(plans)
-                            pobj=ea_load_electrode(options.subj.recon.recon, side+plan);
-                            ea_add_trajectory([],[],options,pobj,side+plan);
-                        end
-                    end
-                end
+    side = options.sides(end);
+    d = load(options.subj.recon.recon);
+
+    % Planned-electrode handling only applies to standard DBS reco files
+    if isfield(d, 'reco') && ...
+            isfield(d.reco, 'electrode') && ...
+            ~isempty(d.reco.electrode)
+
+        plans = d.reco.electrode(side+1:end);
+
+        if ~isempty(plans) && isfield(plans, 'plan')
+            for plan = 1:length(plans)
+                pobj = ea_load_electrode( ...
+                    options.subj.recon.recon, side + plan);
+
+                ea_add_trajectory( ...
+                    [], [], options, pobj, side + plan);
+            end
+        end
+    end
+
+    eltext = getappdata(resultfig, 'eltext');
+
+    % Keep the remaining original code below this point
                 eltext=getappdata(resultfig,'eltext');
 
                 eltexttoggle=uitoggletool(ht, 'CData', ea_get_icn('electrode_segment'),...

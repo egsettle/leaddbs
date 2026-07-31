@@ -246,7 +246,7 @@ end
 
 if isempty(allCand)
     WC = []; T = 0;
-    diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
+%     diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
     return;
 end
 
@@ -344,7 +344,7 @@ if ~usePhase2
     end
     if isempty(mrgMM)
         WC = []; T = (TMax + TMin) / 2;
-        diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
+%         diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
         fprintf('\n[AutoElec] No contacts left after confidence filter. Exiting.\n\n');
         return;
     end
@@ -359,7 +359,7 @@ if ~usePhase2
     T    = (TMax + TMin) / 2;
     EndTime = toc(StartTime);
     [~, idxD] = min(abs(NumObj - size(WC, 1)));
-    diagPlot(app, ThrHU, NumObj, idxD, EndTime);
+%     diagPlot(app, ThrHU, NumObj, idxD, EndTime);
     if phase1ConfMin > 0
         fprintf('\n[AutoElec] ========== FINAL (Phase 1 only, conf > %.2f): %d contacts in %.1f s ==========\n\n', ...
             phase1ConfMin, size(WC, 1), EndTime);
@@ -383,7 +383,7 @@ nPts = size(mrgMM, 1);
 if nPts < 3
     WC = round(mrgVox);
     T  = (TMax + TMin) / 2;
-    diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
+%     diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
     return;
 end
 
@@ -836,7 +836,7 @@ fprintf('\n[AutoElec] === PHASE 4: Deduplication & output ===\n');
 
 if isempty(finalMM)
     WC = []; T = 0;
-    diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
+%     diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
     return;
 end
 
@@ -901,12 +901,12 @@ WC   = round(voxH(1:3, :)');
 T = (TMax + TMin) / 2;
 
 % === Diagnostic plots ======================================================
-EndTime = toc(StartTime);
-[~, idxD] = min(abs(NumObj - size(WC, 1)));
-diagPlot(app, ThrHU, NumObj, idxD, EndTime);
-diagPlotsAutoElecs(app, ThrHU, NumObj, mrgMM, confidence, assigned, ...
-    finalMM_afterPhase3, finalConf_afterPhase3, finalShaftID_afterPhase3, ...
-    nAfterBoneFilter, finalMM, finalConf, finalShaftID, EndTime);
+% EndTime = toc(StartTime);
+% [~, idxD] = min(abs(NumObj - size(WC, 1)));
+% diagPlot(app, ThrHU, NumObj, idxD, EndTime);
+% diagPlotsAutoElecs(app, ThrHU, NumObj, mrgMM, confidence, assigned, ...
+%     finalMM_afterPhase3, finalConf_afterPhase3, finalShaftID_afterPhase3, ...
+%     nAfterBoneFilter, finalMM, finalConf, finalShaftID, EndTime);
 
 fprintf('\n[AutoElec] ========== FINAL: %d contacts detected in %.1f s ==========\n\n', ...
     size(WC, 1), EndTime);
@@ -955,7 +955,7 @@ for kt = 1:numel(ThrR)
     NumObj(kt) = sum(cs0 >= 2);
 end
 [~, idxD] = min(abs(NumObj - size(WC,1)));
-diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
+% diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
 
 if isempty(conf), confMean = 0; else, confMean = mean(conf); end
 fprintf('[AutoElec-ChainHybrid] FINAL fused contacts: %d (mean conf %.2f) in %.1f s\n', ...
@@ -998,7 +998,7 @@ for kt = 1:numel(ThrR)
     NumObj(kt) = sum(cs0 >= 2);
 end
 [~, idxD] = min(abs(NumObj - size(WC,1)));
-diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
+% diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
 
 if isempty(conf), confMean = 0; else, confMean = mean(conf); end
 fprintf('[AutoElec-Hybrid] FINAL fused contacts: %d (mean conf %.2f) in %.1f s\n', ...
@@ -1386,7 +1386,7 @@ MaxElecs = getDetectOpt(app, 'maxelecs', 250, [10, 5000]);
 vValid = Img(Img > 0);
 if isempty(vValid)
     WC = []; T = 0;
-    diagPlot(app, ThrHU, zeros(size(ThrHU)), 1, toc(StartTime));
+%     diagPlot(app, ThrHU, zeros(size(ThrHU)), 1, toc(StartTime));
     return;
 end
 
@@ -1497,7 +1497,7 @@ if isempty(finalMM)
         cs0 = cellfun(@numel, cc0.PixelIdxList);
         NumObj(kt) = sum(cs0 >= minTubeVox & cs0 <= maxTubeVox);
     end
-    diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
+%     diagPlot(app, ThrHU, NumObj, round(numel(ThrR)/2), toc(StartTime));
     fprintf('[AutoElec-Shaft] No shafts survived geometric/brain filters.\n');
     return;
 end
@@ -1526,7 +1526,7 @@ for kt = 1:numel(ThrR)
     NumObj(kt) = sum(cs0 >= minTubeVox & cs0 <= maxTubeVox);
 end
 [~, idxD] = min(abs(NumObj - size(WC,1)));
-diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
+% diagPlot(app, ThrHU, NumObj, idxD, toc(StartTime));
 
 fprintf('[AutoElec-Shaft] FINAL: %d shafts, %d contacts in %.1f s\n', ...
     max(finalShaftID), size(WC,1), toc(StartTime));

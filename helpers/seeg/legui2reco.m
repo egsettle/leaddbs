@@ -1,13 +1,28 @@
 
 function legui2reco(options)
 load(fullfile(options.root, options.patientname, 'reconstruction', ...
-     strcat(options.patientname, '_electrodes.mat')));
+    strcat(options.patientname, '_electrodes.mat')));
 
+%check
+if isempty(ShaftMembership)
+    error(['ShaftMembership is empty. Run AutoName, press Apply Changes, ' ...
+           'close Assign Electrodes, and then save again.']);
+end
+
+if numel(ShaftMembership) ~= size(ElecXYZRaw,1)
+    error(['ShaftMembership has %d entries, but there are %d contacts. ' ...
+           'Run AutoName and Apply Changes again.'], ...
+           numel(ShaftMembership), size(ElecXYZRaw,1));
+end
 % Parse labels and select depth electrodes
-c_labels  = cellfun(@(x) regexprep(x, '\d+$', ''), ElecMapRaw(:,1), 'UniformOutput', false);
-c_numbers = cellfun(@(x) str2double(regexp(x, '\d+', 'match')), ElecMapRaw(:,1));
-el_names  = unique(c_labels(DepthElecRaw)); % only depth electrodes (SEEG)
-contact_counts = cellfun(@(name) sum(strcmp(c_labels, name)), el_names);
+shaftIds = unique(ShaftMembership);
+shaftIds = shaftIds(isfinite(shaftIds) & shaftIds > 0);
+shaftIds = shaftIds(~isnan(shaftIds));
+
+el_names = ShaftNames(shaftIds);
+
+contact_counts = arrayfun(@(s) ...
+    sum(ShaftMembership == s), shaftIds);
 skip_mask = contact_counts < 4;
 
 for idx = find(skip_mask)
@@ -15,7 +30,12 @@ for idx = find(skip_mask)
         el_names{idx}, contact_counts(idx));
 end
 
-el_names = el_names(~skip_mask);
+% Keep all shaft-related arrays aligned
+keep_mask = ~skip_mask;
+
+el_names       = el_names(keep_mask);
+shaftIds       = shaftIds(keep_mask);
+contact_counts = contact_counts(keep_mask);
 
 if isempty(el_names)
     ea_warning('No electrodes with at least four contacts were found. Reconstruction was not updated.')
@@ -72,7 +92,13 @@ for ii = 1:length(el_names)
     fprintf('Processing electrode %s.\n', el_names{ii})
 
     % Indices of contacts for this electrode
-    el_idx        = find(strcmp(c_labels, el_names{ii}));
+    shaftNum = shaftIds(ii);
+    el_idx = find(ShaftMembership == shaftNum);
+    if numel(el_idx) < 4
+        warning('Skipping electrode %s because only %d contacts were found.', ...
+            el_names{ii}, numel(el_idx));
+        continue;
+    end
     native_coords = ElecXYZRaw(el_idx, :);
     proj_coords   = ElecXYZProjRaw(el_idx, :);
     mni_coords    = ElecXYZMNIRaw(el_idx, :);
@@ -92,17 +118,36 @@ for ii = 1:length(el_names)
     reco.mni.coords_mm{ii}    = native_coords(sort_idx, :);
 
     % Label ordering sanity check
-    if ~issorted(c_numbers(el_idx(sort_idx)),'ascend')
-        ea_warning('Labels are inconsistent with automatic contact ordering.')
-    end
+%     if ~issorted(c_numbers(el_idx(sort_idx)),'ascend')
+%         ea_warning('Labels are inconsistent with automatic contact ordering.')
+%     end
 
     % ======= AUTO-SELECT SEEG MODEL (by #contacts + mean spacing) =======
     n_contacts  = size(native_coords, 1);
     icd         = sqrt(sum(diff(native_coords(sort_idx,:)).^2, 2)); % inter-contact distances
     avg_spacing = mean(icd);                                        % mm
 
-    elmodel = choose_best_seeg_model(seegModels, n_contacts, avg_spacing);
-    fprintf('Auto-selected model: %s (n=%d, mean spacing=%.2f mm)\n', elmodel, n_contacts, avg_spacing);
+    % Use the model selected in the AutoName GUI
+    shaftModelIdx = find(strcmp(ShaftNames, el_names{ii}), 1);
+
+    if ~isempty(shaftModelIdx) && ...
+            shaftModelIdx <= numel(ShaftModels) && ...
+            ~isempty(ShaftModels{shaftModelIdx})
+
+        elmodel = ShaftModels{shaftModelIdx};
+
+        fprintf('Using selected model: %s for electrode %s\n', ...
+            elmodel, el_names{ii});
+
+    else
+        % Fallback only if a saved model cannot be found
+        elmodel = choose_best_seeg_model( ...
+            seegModels, n_contacts, avg_spacing);
+
+        fprintf(['No saved model found for %s. ' ...
+            'Auto-selected model: %s\n'], ...
+            el_names{ii}, elmodel);
+    end
 
     % Resolve elspec for geometry-dependent calcs
     options.elmodel = elmodel;
