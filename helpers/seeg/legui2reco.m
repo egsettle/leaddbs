@@ -78,13 +78,13 @@ seegModels = filter_seeg_models(allModels);% exclude DBS; keep DIXI/AdTech/SEEG/
 reco = struct();
 reco.props = struct('elmodel',{},'elname',{},'labels',{});
 reco.native.coords_mm = cell(1, numel(el_names));
-reco.scrf.coords_mm   = cell(1, numel(el_names));
+%reco.scrf.coords_mm   = cell(1, numel(el_names));
 reco.mni.coords_mm    = cell(1, numel(el_names));
 reco.native.markers   = struct('head',{},'tail',{},'x',{},'y',{});
-reco.scrf.markers     = struct('head',{},'tail',{},'x',{},'y',{});
+%reco.scrf.markers     = struct('head',{},'tail',{},'x',{},'y',{});
 reco.mni.markers      = struct('head',{},'tail',{},'x',{},'y',{});
 reco.native.trajectory = repmat(struct(), 1, numel(el_names));
-reco.scrf.trajectory   = repmat(struct(), 1, numel(el_names));
+%reco.scrf.trajectory   = repmat(struct(), 1, numel(el_names));
 reco.mni.trajectory    = repmat(struct(), 1, numel(el_names));
 
 % --- Main loop over electrodes -------------------------------------------
@@ -100,8 +100,8 @@ for ii = 1:length(el_names)
         continue;
     end
     native_coords = ElecXYZRaw(el_idx, :);
-    proj_coords   = ElecXYZProjRaw(el_idx, :);
-    mni_coords    = ElecXYZMNIRaw(el_idx, :);
+%     proj_coords   = ElecXYZProjRaw(el_idx, :);
+%     mni_coords    = ElecXYZMNIRaw(el_idx, :);
 
     % Decide start contact: lateral vs vertical
     if abs(max(native_coords(:,1)) - min(native_coords(:,1))) > 10
@@ -114,8 +114,8 @@ for ii = 1:length(el_names)
 
     % Fill coordinates
     reco.native.coords_mm{ii} = native_coords(sort_idx, :);
-    reco.scrf.coords_mm{ii}   = proj_coords(sort_idx, :);
-    reco.mni.coords_mm{ii}    = native_coords(sort_idx, :);
+%     reco.scrf.coords_mm{ii}   = proj_coords(sort_idx, :);
+%     reco.mni.coords_mm{ii}    = native_coords(sort_idx, :);
 
     % Label ordering sanity check
 %     if ~issorted(c_numbers(el_idx(sort_idx)),'ascend')
@@ -169,26 +169,147 @@ for ii = 1:length(el_names)
 %     [~, reco.native.trajectory(ii), ~] = ea_resolvecoords(reco.native.markers(ii), elmodel);
 %     reco.native.trajectory(ii) = ea_resolvecoords(reco.native.markers(ii), elmodel){1};
     % --- scrf
-    reco.scrf.markers(ii).head = reco.scrf.coords_mm{ii}(1, :);
-    reco.scrf.markers(ii).tail = reco.scrf.coords_mm{ii}(4, :);
-    [xunitv, yunitv] = ea_calcxy(reco.scrf.markers(ii).head, reco.scrf.markers(ii).tail);
-    reco.scrf.markers(ii).x = reco.scrf.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
-    reco.scrf.markers(ii).y = reco.scrf.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
+%     reco.scrf.markers(ii).head = reco.scrf.coords_mm{ii}(1, :);
+%     reco.scrf.markers(ii).tail = reco.scrf.coords_mm{ii}(4, :);
+%     [xunitv, yunitv] = ea_calcxy(reco.scrf.markers(ii).head, reco.scrf.markers(ii).tail);
+%     reco.scrf.markers(ii).x = reco.scrf.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
+%     reco.scrf.markers(ii).y = reco.scrf.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
 %     reco.scrf.trajectory(ii) = struct();
 %     [~, reco.scrf.trajectory(ii), ~] = ea_resolvecoords(reco.scrf.markers(ii), elmodel);
 
-    % --- mni
-    reco.mni.markers(ii).head = reco.mni.coords_mm{ii}(1, :);
-    reco.mni.markers(ii).tail = reco.mni.coords_mm{ii}(4, :);
-    [xunitv, yunitv] = ea_calcxy(reco.mni.markers(ii).head, reco.mni.markers(ii).tail);
-    reco.mni.markers(ii).x = reco.mni.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
-    reco.mni.markers(ii).y = reco.mni.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
+%     % --- mni
+%     reco.mni.markers(ii).head = reco.mni.coords_mm{ii}(1, :);
+%     reco.mni.markers(ii).tail = reco.mni.coords_mm{ii}(4, :);
+%     [xunitv, yunitv] = ea_calcxy(reco.mni.markers(ii).head, reco.mni.markers(ii).tail);
+%     reco.mni.markers(ii).x = reco.mni.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
+%     reco.mni.markers(ii).y = reco.mni.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
 %     try
 %         reco.mni.trajectory(ii) = struct();
 %         [~, reco.mni.trajectory(ii), ~] = ea_resolvecoords(reco.mni.markers(ii), elmodel);
 %     catch
 %         disp('Error building electrode trajectory');
 %     end
+end
+% --- Apply approved Lead-DBS brain-shift transform -------------------------
+
+disp(options.subj.brainshift)
+brainshiftApproved = false;
+
+if isfield(options, 'subj') && ...
+        isfield(options.subj, 'brainshift') && ...
+        isfield(options.subj.brainshift, 'log') && ...
+        isfield(options.subj.brainshift.log, 'method') && ...
+        isfile(options.subj.brainshift.log.method)
+
+    bsjson = loadjson(options.subj.brainshift.log.method);
+
+    if isfield(bsjson, 'approval') && bsjson.approval == 1
+        brainshiftApproved = true;
+    end
+end
+
+if brainshiftApproved && ...
+        isfield(options.subj.brainshift, 'transform') && ...
+        isfield(options.subj.brainshift.transform, 'scrf') && ...
+        isfile(options.subj.brainshift.transform.scrf)
+
+    d = load(options.subj.brainshift.transform.scrf);
+
+    reco.scrf = applyScrfToLeGUIReco_local( ...
+        d.mat, reco.native, 1:numel(el_names));
+
+    fprintf('Applied APPROVED brain-shift transform to reconstruction.\n');
+
+elseif brainshiftApproved
+    warning(['Brain shift is approved, but the SCRF transform file ' ...
+             'was not found. Brain shift was not applied.']);
+else
+    fprintf('No approved brain shift. Saving reconstruction without SCRF coordinates.\n');
+end
+
+if isfield(reco, 'scrf')
+    sourceReco = reco.scrf;
+    fprintf('Using SCRF-corrected coordinates for MNI normalization.\n');
+else
+    sourceReco = reco.native;
+    fprintf('Using native coordinates for MNI normalization.\n');
+end
+
+% Transform reconstruction coordinates from anchorNative -> MNI
+
+
+[whichnormmethod, template] = ...
+    ea_whichnormmethod(options.subj.subjDir);
+
+coregFile = ...
+    options.subj.coreg.anat.preop.(options.subj.AnchorModality);
+
+invDir = [options.subj.subjDir, filesep, 'inverseTransform'];
+
+% Header for converting native world-mm coordinates to voxel coordinates
+Vnative = spm_vol(coregFile);
+
+reco.mni.coords_mm = cell(size(sourceReco.coords_mm));
+
+for ii = 1:numel(sourceReco.coords_mm)
+
+    coordsNativeMM = sourceReco.coords_mm{ii};
+
+    if isempty(coordsNativeMM)
+        continue
+    end
+
+    % native world-mm -> native voxel coordinates
+    nativeVoxel = Vnative.mat \ ...
+        [coordsNativeMM'; ones(1, size(coordsNativeMM,1))];
+
+    nativeVoxel = nativeVoxel(1:3,:);
+
+    % Transform ALL contacts for this electrode to MNI in one call
+    mniCoords = ea_map_coords( ...
+        nativeVoxel, ...
+        coregFile, ...
+        invDir, ...
+        template, ...
+        whichnormmethod);
+
+    % ea_map_coords returns 3 x N; reco expects N x 3
+    reco.mni.coords_mm{ii} = mniCoords';
+
+end
+
+%MNI Markers
+
+reco.mni.markers = struct('head',{},'tail',{},'x',{},'y',{});
+
+for ii = 1:numel(reco.mni.coords_mm)
+
+    coords = reco.mni.coords_mm{ii};
+
+    if isempty(coords)
+        continue
+    end
+
+    reco.mni.markers(ii).head = coords(1,:);
+    reco.mni.markers(ii).tail = coords(4,:);
+
+    elmodel = reco.props(ii).elmodel;
+
+    tmpOptions = options;
+    tmpOptions.elmodel = elmodel;
+    tmpOptions = ea_resolve_elspec(tmpOptions);
+
+    [xunitv, yunitv] = ea_calcxy( ...
+        reco.mni.markers(ii).head, ...
+        reco.mni.markers(ii).tail);
+
+    reco.mni.markers(ii).x = ...
+        reco.mni.markers(ii).head + ...
+        xunitv*(tmpOptions.elspec.lead_diameter/2);
+
+    reco.mni.markers(ii).y = ...
+        reco.mni.markers(ii).head + ...
+        yunitv*(tmpOptions.elspec.lead_diameter/2);
 end
 
 % --- Save reconstruction ---------------------------------------------------
@@ -289,4 +410,39 @@ function val = get_first_numeric(spec, names)
             end
         end
     end
+end
+
+function scrf = applyScrfToLeGUIReco_local(mat, native, shafts)
+
+scrf = native;
+
+for shaft = shafts
+
+    % Coordinates
+    coords = native.coords_mm{shaft};
+
+    transformed = mat * ...
+        [coords, ones(size(coords,1),1)]';
+
+    scrf.coords_mm{shaft} = transformed(1:3,:)';
+
+    % Markers
+    markerNames = {'head','tail','x','y'};
+
+    for k = 1:numel(markerNames)
+
+        fieldName = markerNames{k};
+        point = native.markers(shaft).(fieldName);
+
+        if isempty(point)
+            scrf.markers(shaft).(fieldName) = [];
+            continue;
+        end
+
+        transformed = mat * [point, 1]';
+
+        scrf.markers(shaft).(fieldName) = ...
+            transformed(1:3)';
+    end
+end
 end

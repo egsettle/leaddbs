@@ -66,6 +66,14 @@ r_ins  = elspec.lead_diameter/2;
 r_cont = (elspec.contact_diameter/2);  % can be same as shaft since we no longer overlap
 h_cont = elspec.contact_height;
 
+
+% ---------- distal tip ----------
+if isfield(elspec,'tip_length') && ~isempty(elspec.tip_length)
+    tip_length = double(elspec.tip_length);
+else
+    tip_length = 0;
+end
+
 % ---------- RMF frame along Ct (stable tangents) ----------
 [T, N, B] = rmf_frame(Ct); %#ok<ASGLU>  % N,B not required here but kept if you need later
 
@@ -122,6 +130,39 @@ sStop  = max(sStart, sStop - gap);
 
 P0 = zeros(M,3);
 P1 = zeros(M,3);
+
+%distal electrode tip
+if tip_length > 0
+
+    % Distal edge of first contact along centerline
+    sTipBase = sStart(1);
+
+    % Direction pointing outward from the first contact
+    [P_tipBase, t_tip] = eval_centerline_at_s(Ct, sCt, sTipBase);
+
+    % Point tip direction AWAY from the rest of the electrode
+    t_tip = -t_tip;
+
+    % Build rounded tip extending tip_length beyond first contact
+    hTip = local_rounded_tip( ...
+        P_tipBase, ...
+        t_tip, ...
+        tip_length, ...
+        r_ins, ...
+        opt.nTheta);
+
+    set(hTip, ...
+        'FaceColor', elspec.insulation_color, ...
+        'FaceAlpha', elspec.insulation_alpha, ...
+        'EdgeColor', 'none', ...
+        'FaceLighting', opt.faceLighting, ...
+        'SpecularColorReflectance', 1.0, ...
+        'SpecularExponent', 6, ...
+        'SpecularStrength', opt.specularStrength, ...
+        'AmbientStrength', 0.17, ...
+        'DiffuseStrength', 0.4, ...
+        'Tag', 'LeadTip');
+end
 
 for k = 1:M
     [P0(k,:), ~] = eval_centerline_at_s(Ct, sCt, sStart(k));
@@ -435,4 +476,76 @@ i3 = [3:(nTheta+1) 2].';
 F  = [ones(nTheta,1) i2 i3];
 
 h = patch('Vertices', V, 'Faces', F, 'EdgeColor', 'none');
+end
+
+function h = local_rounded_tip(Pbase, dirHat, tipLength, r, nTheta)
+%LOCAL_ROUNDED_TIP
+% Creates an electrode tip extending outward from Pbase.
+
+Pbase  = double(Pbase(:).');
+dirHat = double(dirHat(:).');
+dirHat = dirHat / (norm(dirHat) + eps);
+
+% Radius cannot consume more than the entire requested tip
+roundLen = min(r, tipLength);
+
+% Straight portion before rounded end
+cylLength = max(0, tipLength - roundLen);
+
+% ---- cylindrical portion ----
+
+handles = gobjects(0);
+
+if cylLength > 1e-6
+
+    PcylEnd = Pbase + dirHat * cylLength;
+
+    hcyl = local_oriented_cylinder( ...
+        Pbase, ...
+        PcylEnd, ...
+        r, ...
+        nTheta);
+
+    handles(end+1) = hcyl;
+
+else
+    PcylEnd = Pbase;
+end
+
+% ---- rounded distal end ----
+%
+% Construct hemisphere whose base has radius r and whose pole
+% lies exactly tipLength away from Pbase.
+
+nPhi = max(8, round(nTheta/2));
+
+theta = linspace(0, 2*pi, nTheta+1);
+phi   = linspace(0, pi/2, nPhi);
+
+[TH, PH] = meshgrid(theta, phi);
+
+% Local hemisphere:
+% z = 0 at base
+% z = roundLen at rounded distal pole
+X = r .* cos(TH) .* cos(PH);
+Y = r .* sin(TH) .* cos(PH);
+Z = roundLen .* sin(PH);
+
+% Rotate local +Z direction onto electrode tip direction
+R = local_rotmat_from_a_to_b([0 0 1], dirHat);
+
+pts = [X(:), Y(:), Z(:)] * R.';
+pts = pts + PcylEnd;
+
+Xw = reshape(pts(:,1), size(X));
+Yw = reshape(pts(:,2), size(Y));
+Zw = reshape(pts(:,3), size(Z));
+
+hround = surf(Xw, Yw, Zw);
+
+handles(end+1) = hround;
+
+% Return all tip surfaces together
+h = handles;
+
 end

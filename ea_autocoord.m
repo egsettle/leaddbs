@@ -190,6 +190,45 @@ if ~strcmp(options.patientname,'No Patient Selected') && ~isempty(options.patien
 
 acpcDone = 0;
 
+% Check whether coregistration had already been completed BEFORE AC/PC
+coregExistedBeforeACPC = false;
+
+if ~isMiniset && isfield(options.subj, 'coreg') && ...
+        isfield(options.subj.coreg, 'anat')
+
+    % Existing PRE-OP coregistration results
+  
+    if isfield(options.subj.coreg.anat, 'preop')
+
+        f = fieldnames(options.subj.coreg.anat.preop);
+
+        % The anchor image itself is not evidence that another image
+        % has actually been coregistered.
+        f(strcmp(f, options.subj.AnchorModality)) = [];
+
+        for k = 1:numel(f)
+            if isfile(options.subj.coreg.anat.preop.(f{k}))
+                coregExistedBeforeACPC = true;
+                break
+            end
+        end
+    end
+
+    % Existing POST-OP coregistration results
+    if ~coregExistedBeforeACPC && ...
+            isfield(options.subj.coreg.anat, 'postop')
+
+        f = fieldnames(options.subj.coreg.anat.postop);
+
+        for k = 1:numel(f)
+            if isfile(options.subj.coreg.anat.postop.(f{k}))
+                coregExistedBeforeACPC = true;
+                break
+            end
+        end
+    end
+end
+
 if options.acpc.do
     acpcDone = ea_runacpc(options);
 end
@@ -204,7 +243,7 @@ end
 if ~isMiniset && isfield(options.subj, 'preopAnat')
 
     
-    anchorField = fields{1};
+    anchorField = options.subj.AnchorModality;
 
     preprocAnchor = options.subj.preopAnat.(anchorField).preproc;
     coregAnchor = options.subj.preopAnat.(anchorField).coreg;
@@ -212,6 +251,22 @@ if ~isMiniset && isfield(options.subj, 'preopAnat')
 
     % If AC/PC was run, the existing coregistration anchor was built
     % from the old preprocessing T1 and must be regenerated.
+
+    if acpcDone && coregExistedBeforeACPC
+
+    warningMsg = sprintf([ ...
+        'The preprocessing anchor was modified after coregistration had already been completed.\n\n' ...
+        'Existing coregistration results may no longer be valid.\n' ...
+        'Please rerun coregistration before continuing with downstream steps.']);
+
+    ea_cprintf('CmdWinWarnings', ...
+        '\nWARNING: The preprocessing anchor was modified after coregistration. Please rerun coregistration!\n\n');
+
+    warndlg( ...
+        warningMsg, ...
+        'Rerun Coregistration');
+end
+
     if acpcDone
         if isfile(coregAnchor)
             ea_delete(coregAnchor);
@@ -221,7 +276,9 @@ if ~isMiniset && isfield(options.subj, 'preopAnat')
     end
 
     % Build the coregistration anchor from the current preprocessing T1.
-    if ~isfile(coregAnchor)
+    doCoregNow = options.coregmr.do || options.coregct.do;
+
+if doCoregNow && ~isfile(coregAnchor)
 
         ea_precoreg( ...
             preprocAnchor, ...

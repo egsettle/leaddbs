@@ -1,5 +1,5 @@
 function app = ea_prepare_legui(app) %#ok<INUSD>
-preferBrainshiftCT = false;
+%preferBrainshiftCT = false;
 enforceSameGrid    = false;
 useMNI             = false;
 
@@ -19,6 +19,15 @@ end
 subjRoot = char(subjRoot);
 [~, subjId] = fileparts(subjRoot);
 
+% ------- Determine whether approved brain shift should be used -------
+brainshiftApproved = isBrainshiftApproved_local(subjRoot, subjId);
+
+if brainshiftApproved
+    fprintf('Brain shift is APPROVED for %s.\n', subjId);
+else
+    fprintf('Brain shift is not approved or was not run for %s.\n', subjId);
+end
+
 GM_filename = strcat(subjId, '_ses-preop_space-anchorNative_desc-preproc_acq-iso_label-GM_mod-iso_T1w_mask.nii');
 WM_filename = strcat(subjId, '_ses-preop_space-anchorNative_desc-preproc_acq-iso_label-WM_mod-iso_T1w_mask.nii');
 CSF_filename = strcat(subjId, '_ses-preop_space-anchorNative_desc-preproc_acq-iso_label-CSF_mod-iso_T1w_mask.nii');
@@ -27,7 +36,7 @@ Electrodes_filename = strcat(subjId, '_electrodes.mat');
 Channels_filename = strcat(subjId, '_channels.mat');
 % ------- Find MR/CT inside that Lead-DBS tree -------
 try
-    [mrFile, ctFile] = findLeadDBSImagePair_local(subjRoot, preferBrainshiftCT, useMNI);
+    [mrFile, ctFile] = findLeadDBSImagePair_local(subjRoot, useMNI);
 catch ME
     msgbox(sprintf('Could not find MR/CT in:\n%s\n\n%s', subjRoot, ME.message));
     app.LoadImgsBtnH.Enable = "on";
@@ -289,7 +298,7 @@ fprintf(['Loaded %d contacts, %d assignment columns, ' ...
 end
 % -------------------- helpers (local scope) --------------------
 
-function [mrFile, ctFile] = findLeadDBSImagePair_local(rootDir, preferBrainshift, useMNI)
+function [mrFile, ctFile] = findLeadDBSImagePair_local(rootDir, useMNI)
 if useMNI
     mrPats = [ ...
         "normalization/anat/*_space-MNI152NLin2009bAsym_desc-preproc_acq-*_T1w.nii", ...
@@ -303,20 +312,13 @@ else
         "coregistration/anat*/**/*_space-anchorNative_*_T1w.nii", ...
         "normalization/anat/*_acq-*_T1w.nii" ...
         ];
-    if preferBrainshift
-        ctPats = [ ...
-            "brainshift/*_ses-postop_space-anchorNative_rec-tonemappedbrainshift_desc-preproc_CT.nii", ...
-            "coregistration/anat*/**/*_ses-postop_space-anchorNative_*desc-preproc_CT.nii", ...
-            "preprocessing/*_ses-postop_space-anchorNative_desc-preproc_CT.nii" ...
-            ];
-    else
-        ctPats = [ ...
-            "coregistration/anat*/**/*_ses-postop_space-anchorNative_*desc-preproc_CT.nii", ...
-            "preprocessing/*_ses-postop_space-anchorNative_desc-preproc_CT.nii", ...
-            "brainshift/*_ses-postop_space-anchorNative_rec-tonemappedbrainshift_desc-preproc_CT.nii" ...
-            ];
-    end
+   
+    ctPats = [ ...
+        "coregistration/anat*/**/*_ses-postop_space-anchorNative_*desc-preproc_CT.nii", ...
+        "preprocessing/*_ses-postop_space-anchorNative_desc-preproc_CT.nii" ...
+        ];
 end
+
 
 mrFile = firstMatch_local(rootDir, mrPats);
 ctFile = firstMatch_local(rootDir, ctPats);
@@ -495,4 +497,42 @@ MRImg  = spm_read_vols(MRInfo);
 
 CTInfo = spm_vol(ctResliced);
 CTImg  = spm_read_vols(CTInfo);
+end
+
+function approved = isBrainshiftApproved_local(subjRoot, subjId)
+
+% Returns true ONLY when the Lead-DBS brainshift method JSON exists
+% and explicitly contains approval == 1.
+%
+% Missing brainshift folder / missing JSON / rejected / malformed JSON all return false.
+
+approved = false;
+
+jsonFile = fullfile( ...
+    subjRoot, ...
+    'brainshift', ...
+    'log', ...
+    [subjId '_desc-brainshiftmethod.json']);
+
+% Brain shift was never run, or no log exists
+if ~isfile(jsonFile)
+    return;
+end
+
+try
+    info = jsondecode(fileread(jsonFile));
+
+    if isfield(info, 'approval') && ...
+            isnumeric(info.approval) && ...
+            isscalar(info.approval) && ...
+            info.approval == 1
+
+        approved = true;
+    end
+
+catch ME
+    warning( ...
+        'Could not read brain-shift approval file "%s": %s', ...
+        jsonFile, ME.message);
+end
 end
