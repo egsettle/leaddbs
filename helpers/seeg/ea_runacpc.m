@@ -1,7 +1,6 @@
 function out = ea_runacpc(options)
-%     preproc_files = cellfun(@(x) options.subj.preproc.anat.preop.(x), fieldnames(options.subj.preproc.anat.preop), 'uni', 0);
-%     app = LeG_ACPCGUI('NiftiFile', preproc_files{1});   % and optionally:
-%     out = 1;
+
+    out = 0;
 
     preopFields = fieldnames(options.subj.preproc.anat.preop);
 
@@ -12,9 +11,12 @@ function out = ea_runacpc(options)
 
     app = LeG_ACPCGUI('NiftiFile', preprocFiles{1});
 
-    % Stop ea_autocoord here until the AC/PC window is closed.
-    waitfor(app.MainFigure);
+    % Wait for the AC/PC GUI to explicitly finish.
+    uiwait(app.MainFigure);
 
-    % Continue only after the user finishes AC/PC.
-    out = 1;
+    % Record whether the image was actually saved/modified.
+    if isvalid(app)
+        out = app.SavedChanges;
+        delete(app);
+    end
 end

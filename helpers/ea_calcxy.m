@@ -27,10 +27,23 @@ if isnumeric(y)
 elseif ischar(y)
     switch y
         case 'anterior' % Force y axis pointing anterior
+
             y = [0, normtrajvector(3), -normtrajvector(2)];
-            x = cross(y, normtrajvector);
-            yunitv = y/norm(y);
-            xunitv = x/norm(x);
+
+            % If trajectory is parallel to the x-axis, the anterior vector
+            % collapses to zero. Fall back to an orthonormal basis.
+            if norm(y) < eps
+                ortho = null(normtrajvector)';
+
+                yunitv = ortho(1,:) / norm(ortho(1,:));
+                xunitv = -ortho(2,:) / norm(ortho(2,:));
+
+            else
+                x = cross(y, normtrajvector);
+
+                yunitv = y / norm(y);
+                xunitv = x / norm(x);
+            end
         case 'null' % Use orthonormal basis calculated from trajvector
             ortho = null(normtrajvector)';
             yunitv = ortho(1,:)/norm(ortho(1,:));

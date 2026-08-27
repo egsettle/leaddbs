@@ -85,7 +85,7 @@ end
 app.GrayInfo = GM;
 app.WhiteInfo = WM;
 app.CSFInfo = CSF;
-app.GrayImg = spm_read_vols(app.GrayInfo);
+app.GrayImg = spm_read_vols(app.GrayInfo); 
 app.WhiteImg = spm_read_vols(app.WhiteInfo);
 app.CSFImg = spm_read_vols(app.CSFInfo);
 SR = [];

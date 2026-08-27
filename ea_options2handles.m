@@ -64,6 +64,7 @@ if isfield(options, 'sides')
     end
 end
 
+
 if isfield(options, 'automask') && options.automask
     set(handles.maskwindow_txt,'String','auto')
 elseif isfield(options, 'maskwindow') && ~isempty(options.maskwindow)
@@ -77,11 +78,21 @@ else
 end
 
 if isfield(options, 'elmodel')
-    value = find(ismember(handles.electrode_model_popup.String, options.elmodel));
-    if ~isempty(value)
-        set(handles.electrode_model_popup, 'Value', value);
+
+    if strcmpi(options.elmodel, 'SEEG')
+        % SEEG does not use the DBS electrode-model dropdown
+
     else
-        ea_cprintf('CmdWinWarnings', 'Specified electrode not found: %s\n', options.elmodel);
+        value = find(ismember(handles.electrode_model_popup.String, ...
+            options.elmodel));
+
+        if ~isempty(value)
+            set(handles.electrode_model_popup, 'Value', value);
+        else
+            ea_cprintf('CmdWinWarnings', ...
+                'Specified electrode not found: %s\n', ...
+                options.elmodel);
+        end
     end
 end
 
@@ -115,5 +126,50 @@ if isfield(options, 'reconmethod') && ~isempty(options.reconmethod)
         set(handles.reconmethod, 'Value', 1);
         ea_cprintf('CmdWinWarnings', ...
             'Specified reconstruction method not found: %s\n', options.reconmethod);
+    end
+end
+% SEEG / LeGUI mode
+if isfield(handles, 'SEEGCheckBox')
+
+    % SEEG state is stored using elmodel = 'SEEG'
+    isSEEG = isfield(options, 'elmodel') && ...
+             strcmpi(options.elmodel, 'SEEG');
+
+    set(handles.SEEGCheckBox, 'Value', isSEEG);
+
+    if isSEEG
+
+        % SEEG always uses LeGUI
+        reconList = handles.reconmethod.String;
+
+        if isstring(reconList) || ischar(reconList)
+            reconList = cellstr(reconList);
+        end
+
+        leguiIdx = find(strcmpi(reconList, 'LeGUI (Davis 2021)'), 1);
+
+        if ~isempty(leguiIdx)
+            set(handles.reconmethod, 'Value', leguiIdx);
+        end
+
+        % DBS-specific controls do not apply
+        set(handles.electrode_model_popup, 'Enable', 'off');
+
+        for i = 1:15
+            set(handles.(['side', num2str(i)]), 'Enable', 'off');
+        end
+
+        set(handles.refinelocalization, 'Value', 0);
+        set(handles.refinelocalization, 'Enable', 'off');
+
+    else
+
+        set(handles.electrode_model_popup, 'Enable', 'on');
+
+        for i = 1:15
+            set(handles.(['side', num2str(i)]), 'Enable', 'on');
+        end
+
+        set(handles.refinelocalization, 'Enable', 'on');
     end
 end
