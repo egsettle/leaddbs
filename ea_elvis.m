@@ -142,11 +142,35 @@ if ~strcmp(options.patientname,'No Patient Selected') % if not initialize empty 
 
         elSide = cell(1, length(elstruct));
         for pt=1:length(elstruct)
-            if exist('el_render','var')
-                [el_render,el_label,elSide{pt}]=ea_renderelstruct(options,resultfig,elstruct,pt,el_render,el_label);
-            else
-                [el_render,el_label,elSide{pt}]=ea_renderelstruct(options,resultfig,elstruct,pt);
-            end
+
+    isSEEG = isfield(options, 'seeg') && logical(options.seeg);
+
+    if isSEEG
+        % SEEG / LeGUI-specific rendering
+        if exist('el_render','var')
+            [el_render, el_label, elSide{pt}] = ...
+                ea_renderelstruct_seeg( ...
+                    options, resultfig, elstruct, pt, ...
+                    el_render, el_label);
+        else
+            [el_render, el_label, elSide{pt}] = ...
+                ea_renderelstruct_seeg( ...
+                    options, resultfig, elstruct, pt);
+        end
+
+    else
+        % Completely original Lead-DBS rendering
+        if exist('el_render','var')
+            [el_render, el_label, elSide{pt}] = ...
+                ea_renderelstruct( ...
+                    options, resultfig, elstruct, pt, ...
+                    el_render, el_label);
+        else
+            [el_render, el_label, elSide{pt}] = ...
+                ea_renderelstruct( ...
+                    options, resultfig, elstruct, pt);
+        end
+    end
             if isfield(options, 'reconmethod') && isequal(options.reconmethod, 'LeGUI (Davis 2021)')
                 multiplemode = 1;
             end

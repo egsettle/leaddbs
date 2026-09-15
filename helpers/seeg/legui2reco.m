@@ -162,7 +162,7 @@ for ii = 1:length(el_names)
     % --- Markers & trajectories (native)
     reco.native.markers(ii).head = reco.native.coords_mm{ii}(1, :);
     reco.native.markers(ii).tail = reco.native.coords_mm{ii}(4, :);
-    [xunitv, yunitv] = ea_calcxy(reco.native.markers(ii).head, reco.native.markers(ii).tail);
+    [xunitv, yunitv] = ea_calcxy_legui(reco.native.markers(ii).head, reco.native.markers(ii).tail);
     reco.native.markers(ii).x = reco.native.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
     reco.native.markers(ii).y = reco.native.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
     reco.native.trajectory(ii) = struct();
@@ -171,7 +171,7 @@ for ii = 1:length(el_names)
     % --- scrf
 %     reco.scrf.markers(ii).head = reco.scrf.coords_mm{ii}(1, :);
 %     reco.scrf.markers(ii).tail = reco.scrf.coords_mm{ii}(4, :);
-%     [xunitv, yunitv] = ea_calcxy(reco.scrf.markers(ii).head, reco.scrf.markers(ii).tail);
+%     [xunitv, yunitv] = ea_calcxy_legui(reco.scrf.markers(ii).head, reco.scrf.markers(ii).tail);
 %     reco.scrf.markers(ii).x = reco.scrf.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
 %     reco.scrf.markers(ii).y = reco.scrf.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
 %     reco.scrf.trajectory(ii) = struct();
@@ -180,7 +180,7 @@ for ii = 1:length(el_names)
 %     % --- mni
 %     reco.mni.markers(ii).head = reco.mni.coords_mm{ii}(1, :);
 %     reco.mni.markers(ii).tail = reco.mni.coords_mm{ii}(4, :);
-%     [xunitv, yunitv] = ea_calcxy(reco.mni.markers(ii).head, reco.mni.markers(ii).tail);
+%     [xunitv, yunitv] = ea_calcxy_legui(reco.mni.markers(ii).head, reco.mni.markers(ii).tail);
 %     reco.mni.markers(ii).x = reco.mni.markers(ii).head + xunitv*(options.elspec.lead_diameter/2);
 %     reco.mni.markers(ii).y = reco.mni.markers(ii).head + yunitv*(options.elspec.lead_diameter/2);
 %     try
@@ -299,7 +299,7 @@ for ii = 1:numel(reco.mni.coords_mm)
     tmpOptions.elmodel = elmodel;
     tmpOptions = ea_resolve_elspec(tmpOptions);
 
-    [xunitv, yunitv] = ea_calcxy( ...
+    [xunitv, yunitv] = ea_calcxy_legui( ...
         reco.mni.markers(ii).head, ...
         reco.mni.markers(ii).tail);
 

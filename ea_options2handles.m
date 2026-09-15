@@ -105,71 +105,80 @@ if isfield(options, 'atlasset')
     end
 end
 
-if isfield(options, 'reconmethod') && ~isempty(options.reconmethod)
-    % Get the list of strings in the popup
-    reconList = handles.reconmethod.String;
+% SEEG / reconstruction method state
+isSEEG = false;
 
-    % Ensure reconList is a cell array of char
-    if isstring(reconList)
-        reconList = cellstr(reconList);
-    elseif ischar(reconList)
-        reconList = cellstr(reconList);
-    end
+% Read the saved SEEG flag directly from this patient's uiprefs
+try
+    bids = getappdata(handles.leadfigure, 'bids');
+    subjId = getappdata(handles.leadfigure, 'subjId');
 
-    % Find the index of the matching method (case-insensitive)
-    idx = find(strcmpi(reconList, options.reconmethod), 1);
+    if numel(subjId) == 1
+        uiprefsFile = bids.getPrefs(subjId{1}, 'uiprefs', 'mat');
 
-    if ~isempty(idx)
-        set(handles.reconmethod, 'Value', idx);
-    else
-        % Option not found — set to first or append warning
-        set(handles.reconmethod, 'Value', 1);
-        ea_cprintf('CmdWinWarnings', ...
-            'Specified reconstruction method not found: %s\n', options.reconmethod);
+        if isfile(uiprefsFile)
+            seegPrefs = load(uiprefsFile, 'seeg');
+
+            if isfield(seegPrefs, 'seeg')
+                isSEEG = logical(seegPrefs.seeg);
+            end
+        end
     end
 end
-% SEEG / LeGUI mode
-if isfield(handles, 'SEEGCheckBox')
 
-    % SEEG state is stored using elmodel = 'SEEG'
-    isSEEG = isfield(options, 'elmodel') && ...
-             strcmpi(options.elmodel, 'SEEG');
+app = handles.leadfigure.RunningAppInstance;
 
-    set(handles.SEEGCheckBox, 'Value', isSEEG);
+if isSEEG
 
-    if isSEEG
+    % Saved SEEG patient: LeGUI only
+    set(handles.SEEGCheckBox, 'Value', 1);
 
-        % SEEG always uses LeGUI
+    app.reconmethod.Value = 'LeGUI (Davis 2021)';
+    app.reconmethod.Items = {'LeGUI (Davis 2021)'};
+
+    set(handles.electrode_model_popup, 'Enable', 'off');
+
+    for i = 1:15
+        set(handles.(['side', num2str(i)]), 'Enable', 'off');
+    end
+
+    set(handles.refinelocalization, 'Value', 0);
+    set(handles.refinelocalization, 'Enable', 'off');
+
+else
+
+    % NORMAL Lead-DBS: restore full method list only if previous patient was SEEG
+    if numel(app.reconmethod.Items) == 1
+        app.reconmethod.Items = { ...
+            'Refined TRAC/CORE', ...
+            'TRAC/CORE (Horn 2015)', ...
+            'PaCER (Husch 2017)', ...
+            'Manual', ...
+            'Slicer (Manual)', ...
+            'LeGUI (Davis 2021)'};
+    end
+
+    if isfield(options, 'reconmethod') && ~isempty(options.reconmethod)
+        % Get the list of strings in the popup
         reconList = handles.reconmethod.String;
 
-        if isstring(reconList) || ischar(reconList)
+        % Ensure reconList is a cell array of char
+        if isstring(reconList)
+            reconList = cellstr(reconList);
+        elseif ischar(reconList)
             reconList = cellstr(reconList);
         end
 
-        leguiIdx = find(strcmpi(reconList, 'LeGUI (Davis 2021)'), 1);
+        % Find the index of the matching method (case-insensitive)
+        idx = find(strcmpi(reconList, options.reconmethod), 1);
 
-        if ~isempty(leguiIdx)
-            set(handles.reconmethod, 'Value', leguiIdx);
+        if ~isempty(idx)
+            set(handles.reconmethod, 'Value', idx);
+        else
+            set(handles.reconmethod, 'Value', 1);
+            ea_cprintf('CmdWinWarnings', ...
+                'Specified reconstruction method not found: %s\n', ...
+                options.reconmethod);
         end
-
-        % DBS-specific controls do not apply
-        set(handles.electrode_model_popup, 'Enable', 'off');
-
-        for i = 1:15
-            set(handles.(['side', num2str(i)]), 'Enable', 'off');
-        end
-
-        set(handles.refinelocalization, 'Value', 0);
-        set(handles.refinelocalization, 'Enable', 'off');
-
-    else
-
-        set(handles.electrode_model_popup, 'Enable', 'on');
-
-        for i = 1:15
-            set(handles.(['side', num2str(i)]), 'Enable', 'on');
-        end
-
-        set(handles.refinelocalization, 'Enable', 'on');
     end
 end

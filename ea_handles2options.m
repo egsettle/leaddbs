@@ -272,9 +272,13 @@ try
     end
 end
 
-try
-    options.reconmethod=get(handles.reconmethod,'String');
-    options.reconmethod=options.reconmethod{get(handles.reconmethod,'Value')};
+if isSEEG
+    options.reconmethod = 'LeGUI (Davis 2021)';
+else
+    try
+        options.reconmethod=get(handles.reconmethod,'String');
+        options.reconmethod=options.reconmethod{get(handles.reconmethod,'Value')};
+    end
 end
 
 options.expstatvat.do=0;

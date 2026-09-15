@@ -271,8 +271,24 @@ if strcmp(handles.prod, 'dbs')
 end
 
 % Update ui from patient
+% Update ui from patient
 if ~ismember(handles.prod, {'mapper'})
+
+    % If previous patient was SEEG, restore the normal list BEFORE ea_getui
+    app = handles.leadfigure.RunningAppInstance;
+
+    if numel(app.reconmethod.Items) == 1
+        app.reconmethod.Items = { ...
+            'Refined TRAC/CORE', ...
+            'TRAC/CORE (Horn 2015)', ...
+            'PaCER (Husch 2017)', ...
+            'Manual', ...
+            'Slicer (Manual)', ...
+            'LeGUI (Davis 2021)'};
+    end
+
     ea_getui(handles);
+
 else
     if length(uipatdir) > 1
         handles.patdir_choosebox.String = ['Multiple (', num2str(length(uipatdir)), ')'];
@@ -287,7 +303,19 @@ end
 if isfield(handles, 'MRCT')
     ea_switchctmr(handles);
 end
+% Apply SEEG restrictions after patient UI is loaded
+if strcmp(handles.prod, 'dbs') && isfield(handles, 'SEEGCheckBox')
 
+    app = handles.leadfigure.RunningAppInstance;
+
+    if app.SEEGCheckBox.Value
+        app.reconmethod.Value = 'LeGUI (Davis 2021)';
+        app.reconmethod.Items = {'LeGUI (Davis 2021)'};
+
+        app.refinelocalization.Value = false;
+        app.refinelocalization.Enable = 'off';
+    end
+end
 ea_storeui(handles); % save in pt folder
 
 ea_addrecent(handles, {BIDSRoot}, 'datasets');
