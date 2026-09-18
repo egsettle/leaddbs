@@ -110,6 +110,9 @@ for group = groups
         vals{group,side}=nan(size(gval{side}(:,gpatsel),1),1);
         if obj.showsignificantonly
             pvals{group,side}=vals{group,side};
+            if startsWith(lower(obj.multcompstrategy),'permutation')
+                permdata{group,side}=[]; % filled in below once valsin/outcomein are known, if the test actually runs
+            end
         end
         switch obj.drawTool
             case 'sweetspotmapping'
@@ -268,7 +271,18 @@ for group = groups
                         pvals{group,side}=psout;
                     end
             end
-          
+
+            if exist('permdata','var')
+                if exist('nonemptyidx','var')
+                    permidx=nonemptyidx;
+                else % networkmapping: whole valsin matrix was tested, no subselection
+                    permidx=(1:numel(vals{group,side}))';
+                end
+                permdata{group,side}=struct('valsin',valsin,'outcomein',outcomein, ...
+                    'statfile',char(stattests.file(idx)),'H0',obj.statsettings.H0, ...
+                    'nonemptyidx',permidx);
+            end
+
         else
             if isempty(valsin)
                 ea_cprintf('CmdWinWarnings', 'group %d side %d: empty valsin!\n', group, side);
@@ -281,7 +295,10 @@ for group = groups
 end
 
 if obj.showsignificantonly
-    vals=ea_corrsignan(vals,pvals,obj);
+    if ~exist('permdata','var')
+        permdata=[];
+    end
+    vals=ea_unified_corrsignan(vals,pvals,obj,permdata);
 end
 
 if strcmp(obj.threshstrategy,'Unthresholded')

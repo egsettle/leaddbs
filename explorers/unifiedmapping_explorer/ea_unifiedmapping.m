@@ -32,7 +32,9 @@ classdef ea_unifiedmapping < handle
         predictionmodel = 'Linear'; % type of glm used to fit fiber values to actual scores
         showsignificantonly = 0
         alphalevel = 0.05
-        multcompstrategy = 'FDR'; % could be 'Bonferroni'
+        multcompstrategy = 'FDR'; % could be 'Bonferroni', 'Uncorrected', 'Permutation Threshold (Uncorr)', or 'Permutation Threshold (max-statistics)'
+        multcompNperm = 1000 % number of shuffles used by the permutation-based multcompstrategy options (see ea_unified_permutation_nulldist.m / ea_unified_permutation_threshold.m)
+        multcompmaxworkers = 3 % cap on parpool workers for the permutation-threshold parfor loop, if Parallel Computing Toolbox is available
         subscore
         explorerdrawn
         results = struct
@@ -1332,6 +1334,28 @@ classdef ea_unifiedmapping < handle
                     Predicted_scores(test) = Ihat_voters_prediction(1:end,1); % only one value here atm
                 end
 
+            end
+
+            % Report how many fibers survived significance thresholding
+            % (e.g. permutation-based, uncorrected or max-statistic) for
+            % each cross-validation fold's training-set model.
+            if ~silent && obj.showsignificantonly && strcmp(obj.drawTool,'fiberfiltering') && ...
+                    iscell(val_struct) && ~isempty(val_struct) && isstruct(val_struct{1}) && ...
+                    isfield(val_struct{1},'usedidx') && ~isempty(val_struct{1}.usedidx)
+                nSides = size(val_struct{1}.usedidx,2);
+                nFibersPerFold = nan(cvp.NumTestSets, nSides);
+                for foldidx=1:cvp.NumTestSets
+                    for side=1:nSides
+                        nFibersPerFold(foldidx,side) = numel(val_struct{foldidx}.usedidx{1,side});
+                    end
+                end
+                fprintf('\nFibers kept for the model per fold (significance-thresholded):\n');
+                foldfmt = ['  Fold %0', num2str(numel(num2str(cvp.NumTestSets))), 'd: %s\n'];
+                for foldidx=1:cvp.NumTestSets
+                    fprintf(foldfmt, foldidx, mat2str(nFibersPerFold(foldidx,:)));
+                end
+                fprintf('  Mean across folds: %s\n', mat2str(round(mean(nFibersPerFold,1))));
+                fprintf('  Min / Max across folds: %s / %s\n\n', mat2str(min(nFibersPerFold,[],1)), mat2str(max(nFibersPerFold,[],1)));
             end
 
             % check if binary variable and not permutation test
