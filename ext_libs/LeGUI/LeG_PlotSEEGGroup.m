@@ -1,11 +1,14 @@
 function LeG_PlotSEEGGroup(rootDir, patients, renderMode)
 % Plot multiple SEEG reconstructions in one standard Lead-DBS MNI figure.
 %
+% rootDir should point to the BIDS dataset root.
+%
 % USAGE:
-%   LeG_PlotSEEGGroup('/path/to/derivatives/leaddbs', [], 'sphere')
-%   LeG_PlotSEEGGroup('/path/to/derivatives/leaddbs', [], 'electrode')
-%   LeG_PlotSEEGGroup('/path/to/derivatives/leaddbs', patients, 'sphere')
+%   LeG_PlotSEEGGroup('/path/to/dataset', [], 'sphere')
+%   LeG_PlotSEEGGroup('/path/to/dataset', [], 'electrode')
+%
 %   patients = ["sub-72","sub-84","sub-90"];
+%   LeG_PlotSEEGGroup('/path/to/dataset', patients, 'sphere')
 
 
 if nargin < 3 || isempty(renderMode)
@@ -21,16 +24,25 @@ if ~ismember(lower(renderMode), {'sphere','electrode'})
 end
 
 
-% Choose folder if needed
+% Choose dataset folder if needed
 
 if nargin < 1 || isempty(rootDir)
 
     rootDir = uigetdir(pwd, ...
-        'Select derivatives/leaddbs folder');
+        'Select BIDS dataset folder');
 
     if isequal(rootDir,0)
         return
     end
+end
+
+
+% Lead-DBS derivatives folder
+
+leaddbsDir = fullfile(rootDir, 'derivatives', 'leaddbs');
+
+if ~isfolder(leaddbsDir)
+    error('Could not find derivatives/leaddbs inside:\n%s', rootDir);
 end
 
 
@@ -39,7 +51,7 @@ end
 if isempty(patients)
 
     recoFiles = dir(fullfile( ...
-        rootDir, '**', '*_desc-reconstruction.mat'));
+        leaddbsDir, '**', '*_desc-reconstruction.mat'));
 
 else
 
@@ -50,7 +62,7 @@ else
 
         patientName = char(patients(p));
 
-        patientDir = fullfile(rootDir, patientName);
+        patientDir = fullfile(leaddbsDir, patientName);
 
         r = dir(fullfile( ...
             patientDir, ...
@@ -101,7 +113,9 @@ switch lower(renderMode)
 
 end
 
+
 % One unique color per subject/reconstruction
+
 nSubjects = numel(recoFiles);
 
 subjectHues = linspace(0, 1, nSubjects + 1)';
@@ -114,6 +128,8 @@ subjectColors = hsv2rgb([ ...
     subjectHues, ...
     0.70*ones(nSubjects,1), ...
     0.85*ones(nSubjects,1)]);
+
+
 % Loop through every reconstruction
 
 for i = 1:numel(recoFiles)
